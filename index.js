@@ -1,13 +1,16 @@
 import { Bot } from "grammy";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "@google/generative-ai"; // Використовуємо стабільний пакет
 
 if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.GEMINI_API_KEY) {
     console.error("Помилка: Не налаштовані змінні оточення!");
     process.exit(1);
 }
 
-// Ініціалізуємо ШІ та бота
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Стабільна ініціалізація Google Gemini
+const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
+// Вибираємо модель тексту
+const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 
 bot.command("start", async (ctx) => {
@@ -18,23 +21,18 @@ bot.on("message:text", async (ctx) => {
     try {
         await ctx.replyWithChatAction("typing");
 
-        // Універсальний та найбільш стабільний виклик моделі в нових версіях SDK
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: ctx.message.text,
-        });
+        // Прямий запит до моделі без зайвих обгорток
+        const result = await model.generateContent(ctx.message.text);
+        const response = await result.response;
+        const text = response.text();
 
-        // Перевіряємо, чи повернув Google текст
-        if (response && response.text) {
-            await ctx.reply(response.text);
+        if (text) {
+            await ctx.reply(text);
         } else {
-            // Якщо структура відповіді інша, дістаємо текст через стандартний метод text()
-            const textResponse = typeof response.text === 'function' ? await response.text() : response.text;
-            await ctx.reply(textResponse || "Не вдалося розпізнати відповідь ШІ.");
+            await ctx.reply("ШІ повернув порожню відповідь.");
         }
     } catch (error) {
-        // Виводимо детальну помилку в логи Render, щоб ми бачили, якщо щось не так з ключем
-        console.error("Помилка Google Gemini API:", error.message || error);
+        console.error("Помилка Google Gemini API:", error);
         await ctx.reply("Сталася помилка під час обробки запиту. Спробуйте ще раз трохи пізніше.");
     }
 });
