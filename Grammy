@@ -1,0 +1,32 @@
+import { Bot } from "grammy";
+import { GoogleGenAI } from "@google/genai";
+
+// Ініціалізація ШІ та Бота (замініть ключі на свої)
+const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6JPeUdokigTv59byyrzxUBjWaG12rNRiMAbP29RwYws-A" });
+const bot = new Bot("8655551160:AAFoLNWetJ2uFfUrT1Xkb2P8M7iVZagY2CM");
+
+// Обробка команди /start
+bot.command("start", (ctx) => ctx.reply("Привіт! Я твій персональний ШІ. Напиши мені щось!"));
+
+// Обробка будь-яких текстових повідомлень
+bot.on("message:text", async (ctx) => {
+    try {
+        // Показуємо користувачу, що ШІ "друкує" відповідь
+        await ctx.replyWithChatAction("typing");
+
+        // Відправляємо текст користувача в Gemini
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash", // швидка і розумна модель
+            contents: ctx.message.text,
+        });
+
+        // Надсилаємо відповідь ШІ назад у Telegram
+        await ctx.reply(response.text);
+    } catch (error) {
+        console.error("Помилка:", error);
+        await ctx.reply("Ой, щось пішло не так. Спробуй ще раз.");
+    }
+});
+
+// Запуск бота
+bot.start();
