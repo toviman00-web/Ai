@@ -1,42 +1,44 @@
 import { Bot } from "grammy";
 import { GoogleGenAI } from "@google/genai";
 
-// Перевірка, чи задані змінні оточення на хостингу
 if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.GEMINI_API_KEY) {
-    console.error("Помилка: Не налаштовані змінні TELEGRAM_BOT_TOKEN або GEMINI_API_KEY в панелі хостингу!");
+    console.error("Помилка: Не налаштовані змінні оточення!");
     process.exit(1);
 }
 
-// Ініціалізація ШІ та Бота через змінні оточення
+// Ініціалізуємо ШІ та бота
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 
-// Реагуємо на команду /start
 bot.command("start", async (ctx) => {
     await ctx.reply("Привіт! Я твій персональний ШІ-асистент. Запитай мене про що завгодно!");
 });
 
-// Обробка всіх текстових повідомлень
 bot.on("message:text", async (ctx) => {
     try {
-        // Ефект "друкує..." у Telegram, щоб користувач бачив, що ШІ думає
         await ctx.replyWithChatAction("typing");
 
-        // Запит до моделі Gemini
+        // Універсальний та найбільш стабільний виклик моделі в нових версіях SDK
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash", 
+            model: 'gemini-2.5-flash',
             contents: ctx.message.text,
         });
 
-        // Надсилаємо відповідь користувачу
-        await ctx.reply(response.text);
+        // Перевіряємо, чи повернув Google текст
+        if (response && response.text) {
+            await ctx.reply(response.text);
+        } else {
+            // Якщо структура відповіді інша, дістаємо текст через стандартний метод text()
+            const textResponse = typeof response.text === 'function' ? await response.text() : response.text;
+            await ctx.reply(textResponse || "Не вдалося розпізнати відповідь ШІ.");
+        }
     } catch (error) {
-        console.error("Помилка обробки повідомлення:", error);
+        // Виводимо детальну помилку в логи Render, щоб ми бачили, якщо щось не так з ключем
+        console.error("Помилка Google Gemini API:", error.message || error);
         await ctx.reply("Сталася помилка під час обробки запиту. Спробуйте ще раз трохи пізніше.");
     }
 });
 
-// Запуск бота в режимі Long Polling
 bot.start({
     onStart: (botInfo) => {
         console.log(`Бот успішно запущений як @${botInfo.username}`);
