@@ -7,7 +7,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@google/generative-ai": "latest",
     "grammy": "latest"
   }
 }
